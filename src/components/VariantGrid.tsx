@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Scene } from "@/lib/types";
+import { VariantPlayer } from "./VariantPlayer";
 
 interface Props {
   scene: Scene;
@@ -9,17 +11,22 @@ interface Props {
 }
 
 export function VariantGrid({ scene, selectedVariant, onSelect }: Props) {
+  const [hoveredVariant, setHoveredVariant] = useState<number | null>(null);
+
   return (
     <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-2 min-h-0">
       {Array.from({ length: 9 }, (_, i) => {
         const variant = i + 1;
         const isSelected = selectedVariant === variant;
         const isPicked = scene.status === "final" && scene.pickedVariant === variant;
+        const isHovered = hoveredVariant === variant;
 
         return (
           <button
             key={variant}
             onClick={() => onSelect(variant)}
+            onMouseEnter={() => setHoveredVariant(variant)}
+            onMouseLeave={() => setHoveredVariant(null)}
             className={`
               relative rounded-lg overflow-hidden transition-all duration-150
               ${isSelected
@@ -30,15 +37,14 @@ export function VariantGrid({ scene, selectedVariant, onSelect }: Props) {
               }
             `}
           >
-            {/* Placeholder for Remotion Player — each cell will be a Player instance */}
-            <div className="absolute inset-0 bg-[#1a1a2e] flex items-center justify-center">
-              <div className="text-center">
-                <span className="text-white/30 text-lg font-bold">{variant}</span>
-                <span className="text-white/10 text-[10px] block mt-1">
-                  {scene.compositionId} v{variant}
-                </span>
-              </div>
-            </div>
+            {/* Remotion Player — all autoplay */}
+            <VariantPlayer
+              shotNum={scene.id}
+              variantIndex={variant}
+              width={640}
+              height={360}
+              durationFrames={scene.durationFrames || 150}
+            />
 
             {/* Variant number badge */}
             <div className="absolute top-1.5 left-2 z-10">
@@ -48,7 +54,7 @@ export function VariantGrid({ scene, selectedVariant, onSelect }: Props) {
                     ? "bg-teal-400/30 text-teal-300"
                     : isPicked
                       ? "bg-green-400/30 text-green-300"
-                      : "bg-white/10 text-white/40"
+                      : "bg-black/50 text-white/50"
                 }`}
               >
                 {variant}

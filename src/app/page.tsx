@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SCENES } from "@/lib/scenes";
 import { Scene } from "@/lib/types";
 import { SceneTimeline } from "@/components/SceneTimeline";
@@ -8,6 +8,7 @@ import { NarrationBar } from "@/components/NarrationBar";
 import { PreviousScene } from "@/components/PreviousScene";
 import { VariantGrid } from "@/components/VariantGrid";
 import { RemixBox } from "@/components/RemixBox";
+import { preloadVariants } from "@/lib/composition-registry";
 
 export default function ReviewPage() {
   const [currentId, setCurrentId] = useState(1);
@@ -16,6 +17,12 @@ export default function ReviewPage() {
 
   const current = scenes.find((s) => s.id === currentId)!;
   const previous = currentId > 1 ? scenes.find((s) => s.id === currentId - 1) ?? null : null;
+
+  // Preload current + next scene variants eagerly
+  useEffect(() => {
+    preloadVariants(currentId);
+    if (currentId < scenes.length) preloadVariants(currentId + 1);
+  }, [currentId, scenes.length]);
 
   const pickVariant = useCallback(() => {
     if (selectedVariant === null) return;

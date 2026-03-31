@@ -1,0 +1,88 @@
+import React, { useRef, useEffect, useMemo } from "react";
+import { useCurrentFrame, interpolate } from "remotion";
+import type { VariantProps } from "../types";
+
+// Clean mint/teal on dark teal — scientific, clinical, modern
+function seeded(s: number) {
+  return () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+}
+
+export const MintClean: React.FC<VariantProps> = ({ width, height }) => {
+  const frame = useCurrentFrame();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scale = Math.min(width, height) / 360;
+
+  const data = useMemo(() => {
+    const rand = seeded(42);
+    const cx = width / 2, cy = height / 2;
+    const nodes: { x: number; y: number; r: number }[] = [];
+    for (let i = 0; i < 200; i++) {
+      const a = rand() * Math.PI * 2;
+      const r = Math.pow(rand(), 0.5) * Math.min(width, height) * 0.36;
+      nodes.push({ x: cx + Math.cos(a) * r * 1.3, y: cy + Math.sin(a) * r * 0.9, r: (1.5 + rand() * 2.5) * scale });
+    }
+    const edges: [number, number][] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+        if (Math.sqrt(dx * dx + dy * dy) < 55 * scale && rand() < 0.14) edges.push([i, j]);
+      }
+    }
+    return { nodes, edges };
+  }, [width, height, scale]);
+
+  const fadeOut = interpolate(frame, [130, 148], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, "#061a1a");
+    grad.addColorStop(1, "#041214");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+
+    // Grid lines for clinical feel
+    ctx.globalAlpha = 0.04;
+    ctx.strokeStyle = "#40ffcc";
+    ctx.lineWidth = 0.5;
+    const step = 30 * scale;
+    for (let x = 0; x < width; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+    for (let y = 0; y < height; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+
+    ctx.globalAlpha = fadeOut;
+    const visible = Math.floor(interpolate(frame, [5, 120], [1, data.nodes.length], {
+      extrapolateLeft: "clamp", extrapolateRight: "clamp",
+    }));
+
+    for (const [a, b] of data.edges) {
+      if (a >= visible || b >= visible) continue;
+      ctx.strokeStyle = "rgba(80, 255, 200, 0.15)";
+      ctx.lineWidth = 1 * scale;
+      ctx.beginPath();
+      ctx.moveTo(data.nodes[a].x, data.nodes[a].y);
+      ctx.lineTo(data.nodes[b].x, data.nodes[b].y);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < visible; i++) {
+      const n = data.nodes[i];
+      const age = visible - i;
+      const alpha = Math.min(1, age / 8);
+      const pulse = 0.8 + Math.sin(frame * 0.06 + i * 2) * 0.2;
+
+      ctx.fillStyle = `rgba(120, 255, 210, ${alpha * pulse * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r * 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = `rgba(200, 255, 240, ${alpha * pulse * 0.9})`;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+
+  return <canvas ref={canvasRef} width={width} height={height} style={{ width, height }} />;
+};
